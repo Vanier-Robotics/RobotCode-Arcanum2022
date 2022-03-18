@@ -10,24 +10,26 @@
 2. Can't program the board if wireless communication is active.
 
 
-# Todo
+## Todo
 
 - Implement a clock/time management (if needed)
 - Find a way to separate the code into multiple files
+- Determine slide angle min/max and presets
+- Control other motors & lights (if needed)
 
-# Requires Testing
+## Requires Testing
 
-- Drive Movement, speed, etc.
+- Drive train movement, speed, etc.
 
-# Done
+## Done
 
-- Controller Library
-- Drive Mode Switching
+- Controller library
+- Drive mode switching
 
 
-# Controls
+## Controls
 
-## Global
+### Global
 
 - Y button: Switch drive (toggle)
 - X button: Output chain (hold)
@@ -36,16 +38,16 @@
   - if up: up
   - if down: down
   - Constant speed
-- + button: Slide presets (full effect to be determined)
+- D-pad (up/down): Slide presets (full effect to be determined)
 
-## Tank Drive
+### Tank Drive
 
 - Triggers: Acceleration, Deceleration (Analog)
 - Joystick 1, X axis: Turning (Analog)
 - B: Boost (hold) -> unlock motor speed
   - note: may not be necessary, will be determined when drive train is tested in drive mode.
 
-## Omni Drive
+### Omni Drive
 
 - Significantly slower
 - Joystick 1: direction + speed

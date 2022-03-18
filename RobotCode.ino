@@ -215,9 +215,9 @@ public:
     m_bindings.digitalBind(BUTTON::COLORS_UP,    [](bool)         { Mode::modeManager.changeMode(mecanumMode); }, true);
     m_bindings.digitalBind(BUTTON::COLORS_LEFT,  [](bool pressed) { outputChain = pressed; },                     false);
     m_bindings.digitalBind(BUTTON::COLORS_RIGHT, [](bool pressed) { boost = pressed; },                           false);
-    m_bindings.digitalBind(BUTTON::COLORS_LOW,   [](bool toggled) { inputActivated = pressed; },                  true);
-    m_bindings.digitalBind(BUTTON::ARROW_DOWN,   [](bool pressed) { if (pressed) changeAnglePreset(false); },     false);
-    m_bindings.digitalBind(BUTTON::ARROW_UP,     [](bool pressed) { if (pressed) changeAnglePreset(true) },       false);
+    m_bindings.digitalBind(BUTTON::COLORS_DOWN,  [](bool toggled) { inputActivated = toggled; },                  true);
+    m_bindings.digitalBind(BUTTON::ARROW_DOWN,   [](bool pressed) { if (pressed) changeSlideAnglePreset(false); },     false);
+    m_bindings.digitalBind(BUTTON::ARROW_UP,     [](bool pressed) { if (pressed) changeSlideAnglePreset(true); },       false);
     
     m_bindings.analogBind(ANALOG::JOYSTICK1_X, [](int8_t value) { direction = value; });
     m_bindings.analogBind(ANALOG::GACHETTE_R,  [](int8_t value) { forward += (static_cast<int>(value) + 128) / 2; }); // /4 + inverse?
@@ -301,19 +301,19 @@ class MecanumMode : public Mode
 public:
   static Mode* tankMode;
 
-  MechanumMode()
+  MecanumMode()
   {
     m_bindings.digitalBind(BUTTON::COLORS_UP,   [](bool)         { Mode::modeManager.changeMode(tankMode); },  true);
     m_bindings.digitalBind(BUTTON::COLORS_LEFT, [](bool pressed) { outputChain = pressed; },                   false);
-    m_bindings.digitalBind(BUTTON::COLORS_LOW,  [](bool toggled) { inputActivated = pressed; },                true);
-    m_bindings.digitalBind(BUTTON::ARROW_DOWN,  [](bool pressed) { if (pressed) changeAnglePreset(false); },   false);
-    m_bindings.digitalBind(BUTTON::ARROW_UP,    [](bool pressed) { if (pressed) changeAnglePreset(true) },     false);
-    m_bindings.digitalBind(BUTTON::L1,          [](bool pressed) { if (pressed) MechanumMode::strafe -= 64; }, false);
-    m_bindings.digitalBind(BUTTON::R1,          [](bool pressed) { if (pressed) MechanumMode::strafe += 64; }, false);
+    m_bindings.digitalBind(BUTTON::COLORS_DOWN, [](bool toggled) { inputActivated = toggled; },                true);
+    m_bindings.digitalBind(BUTTON::ARROW_DOWN,  [](bool pressed) { if (pressed) changeSlideAnglePreset(false); },   false);
+    m_bindings.digitalBind(BUTTON::ARROW_UP,    [](bool pressed) { if (pressed) changeSlideAnglePreset(true); },     false);
+    m_bindings.digitalBind(BUTTON::L1,          [](bool pressed) { if (pressed) strafe -= 64; },               false);
+    m_bindings.digitalBind(BUTTON::R1,          [](bool pressed) { if (pressed) strafe += 64; },               false);
     
-    m_bindings.analogBind(ANALOG::JOYSTICK1_X, [](int8_t value) { MechanumMode::yaw = value; });
-    m_bindings.analogBind(ANALOG::JOYSTICK1_Y, [](int8_t value) { MechanumMode::forward = -value; });
-    m_bindings.analogBind(ANALOG::JOYSTICK2_Y, [](int8_t value) { if (value <= -32) MechanumMode::slideAngleChange = 5; else if (value >= 32) MechanumMode::slideAngleChange = -5; });
+    m_bindings.analogBind(ANALOG::JOYSTICK1_X, [](int8_t value) { yaw = value; });
+    m_bindings.analogBind(ANALOG::JOYSTICK1_Y, [](int8_t value) { forward = -value; });
+    m_bindings.analogBind(ANALOG::JOYSTICK2_Y, [](int8_t value) { if (value <= -32) slideAngleChange = 5; else if (value >= 32) slideAngleChange = -5; });
   }
 
   void update(float dt) override
@@ -334,7 +334,7 @@ public:
     }
 
     #ifdef __DEBUG
-    Serial.print("[MECHANUM] Forward: "); Serial.print(static_cast<int>(forward));
+    Serial.print("[MECANUM] Forward: "); Serial.print(static_cast<int>(forward));
     Serial.print(" Yaw: ");               Serial.print(static_cast<int>(yaw));
     Serial.print(" Strafe: ");            Serial.print(static_cast<int>(strafe));
     Serial.print(" Chain: ");             Serial.print(outputChain);
@@ -361,7 +361,7 @@ public:
   }
 
 private:
-  Controller<3, 6> m_bindings;
+  Controller<3, 7> m_bindings;
 
   static int8_t forward;
   static int8_t yaw;
