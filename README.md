@@ -4,8 +4,6 @@
 
 [Crc Lib](https://robocrc.atlassian.net/wiki/spaces/AR/pages/637567103/English+Section+-+Intro+Page)
 
-
-
 ## What we've learned
 
 1. 5V rails don't work unless 12V is supplied to board.
@@ -14,26 +12,40 @@
 
 # Todo
 
-- Controller Library
+- Implement a clock/time management (if needed)
+- Find a way to separate the code into multiple files
 
-## Controls
+# Requires Testing
+
+- Drive Movement, speed, etc.
+
+# Done
+
+- Controller Library
+- Drive Mode Switching
+
+
+# Controls
+
+## Global
 
 - Y button: Switch drive (toggle)
 - X button: Output chain (hold)
+- A button: Activate input (toggle)
 - Joystick 2, y: Slide angle
   - if up: up
   - if down: down
   - Constant speed
 - + button: Slide presets (full effect to be determined)
 
-### Tank Drive
+## Tank Drive
 
 - Triggers: Acceleration, Deceleration (Analog)
 - Joystick 1, X axis: Turning (Analog)
 - B: Boost (hold) -> unlock motor speed
   - note: may not be necessary, will be determined when drive train is tested in drive mode.
 
-### Omni Drive
+## Omni Drive
 
 - Significantly slower
 - Joystick 1: direction + speed
