@@ -14,8 +14,6 @@
 
 - Implement a clock/time management (if needed)
 - Find a way to separate the code into multiple files
-- Determine slide angle min/max and presets
-- Control other motors & lights (if needed)
 
 ## Requires Testing
 

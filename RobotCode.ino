@@ -7,13 +7,18 @@
 
 #include <CrcLib.h>
 
-// remove comment to enable debug mode (outputs to the serial console, but is significantly slower)
-// #define __DEBUG
 
-#define FRONT_LEFT_MOTOR  CRC_PWM_2
-#define FRONT_RIGHT_MOTOR CRC_PWM_4
-#define BACK_LEFT_MOTOR   CRC_PWM_3
-#define BACK_RIGHT_MOTOR  CRC_PWM_1
+// remove comment to enable debug mode (outputs to the serial console, but is SIGNIFICANTLY slower)
+//#define __DEBUG
+
+#define FRONT_LEFT_MOTOR  CRC_PWM_1
+#define FRONT_RIGHT_MOTOR CRC_PWM_2
+#define BACK_RIGHT_MOTOR  CRC_PWM_3
+#define BACK_LEFT_MOTOR   CRC_PWM_4
+
+#define SLIDE_MOTOR         CRC_PWM_5
+#define CONVEYOR_BELT_MOTOR CRC_PWM_6
+#define INPUT_MOTOR         CRC_PWM_8
 
 using namespace Crc;
 
@@ -203,6 +208,8 @@ public:
 
 private:
   Controller<1, 1> m_bindings; // we have one analog input to avoid having a zero-sized array
+
+  float elapsedTime = 0.0f;
 };
 
 class TankMode : public Mode
@@ -212,35 +219,21 @@ public:
 
   TankMode()
   {
-    m_bindings.digitalBind(BUTTON::COLORS_UP,    [](bool)         { Mode::modeManager.changeMode(mecanumMode); }, true);
-    m_bindings.digitalBind(BUTTON::COLORS_LEFT,  [](bool pressed) { outputChain = pressed; },                     false);
-    m_bindings.digitalBind(BUTTON::COLORS_RIGHT, [](bool pressed) { boost = pressed; },                           false);
-    m_bindings.digitalBind(BUTTON::COLORS_DOWN,  [](bool toggled) { inputActivated = toggled; },                  true);
-    m_bindings.digitalBind(BUTTON::ARROW_DOWN,   [](bool pressed) { if (pressed) changeSlideAnglePreset(false); },     false);
-    m_bindings.digitalBind(BUTTON::ARROW_UP,     [](bool pressed) { if (pressed) changeSlideAnglePreset(true); },       false);
+    m_bindings.digitalBind(BUTTON::COLORS_UP,    [](bool)         { Mode::modeManager.changeMode(mecanumMode); },  true);
+    m_bindings.digitalBind(BUTTON::COLORS_LEFT,  [](bool pressed) { outputChain = pressed; },                      false);
+    m_bindings.digitalBind(BUTTON::COLORS_RIGHT, [](bool pressed) { boost = pressed; },                            false);
+    m_bindings.digitalBind(BUTTON::COLORS_DOWN,  [](bool toggled) { inputActivated = toggled; },                   true);
+    m_bindings.digitalBind(BUTTON::ARROW_DOWN,   [](bool pressed) { if (pressed) slideSpeed += 25; },              false);
+    m_bindings.digitalBind(BUTTON::ARROW_UP,     [](bool pressed) { if (pressed) slideSpeed -= 25; },              false);
     
     m_bindings.analogBind(ANALOG::JOYSTICK1_X, [](int8_t value) { direction = value; });
-    m_bindings.analogBind(ANALOG::GACHETTE_R,  [](int8_t value) { forward += (static_cast<int>(value) + 128) / 2; }); // /4 + inverse?
+    m_bindings.analogBind(ANALOG::GACHETTE_R,  [](int8_t value) { forward += (static_cast<int>(value) + 128) / 2; });
     m_bindings.analogBind(ANALOG::GACHETTE_L,  [](int8_t value) { forward -= (static_cast<int>(value) + 128) / 2; });
-    m_bindings.analogBind(ANALOG::JOYSTICK2_Y, [](int8_t value) { if (value <= -32) slideAngleChange = 5; else if (value >= 5) slideAngleChange = -5; });
   }
 
   void update(float dt) override
   {
     m_bindings.update();
-    const float result = static_cast<float>(slideAngle) + static_cast<float>(slideAngleChange) * dt;
-    if (result > 112)
-    {
-      slideAngle = 112;
-    }
-    else if (result < -64)
-    {
-      slideAngle = -64;
-    }
-    else
-    {
-      slideAngle = result;
-    }
 
     float m = 1; // [0.5, 2]
     float right = max(min((- m * static_cast<float>(direction) + static_cast<float>(forward)) * (boost ? 1 : 0.5), 127), -128);
@@ -249,17 +242,26 @@ public:
     #ifdef __DEBUG
     Serial.print("[TANK] Boost: "); Serial.print(boost);
     Serial.print(" Chain: ");       Serial.print(outputChain);
+    Serial.print(" Input: ");       Serial.print(inputActivated);
     Serial.print(" Forward: ");     Serial.print(static_cast<int>(forward));
     Serial.print(" Direction: ");   Serial.print(static_cast<int>(direction));
     Serial.print(" Slide Angle: "); Serial.print(static_cast<int>(slideAngle));
     Serial.print(" Right: ");       Serial.print(static_cast<int>(right));
     Serial.print(" Left: ");        Serial.println(static_cast<int>(left));
     #endif
-  
+    
     CrcLib::MoveTank(left, right, FRONT_LEFT_MOTOR, BACK_LEFT_MOTOR, FRONT_RIGHT_MOTOR, BACK_RIGHT_MOTOR);
+
+    if (outputChain) CrcLib::SetPwmOutput(CONVEYOR_BELT_MOTOR, -35);
+    else CrcLib::SetPwmOutput(CONVEYOR_BELT_MOTOR, 0);
+    
+    if (inputActivated) CrcLib::SetPwmOutput(INPUT_MOTOR, 128);
+    else CrcLib::SetPwmOutput(INPUT_MOTOR, 0);
+    
+    CrcLib::SetPwmOutput(SLIDE_MOTOR, slideSpeed);
     
     forward          = 0;
-    slideAngleChange = 0;
+    slideSpeed       = 0;
   }
 
   void load() override
@@ -270,11 +272,6 @@ public:
   {
   }
 
-  static void changeSlideAnglePreset(bool goingUp)
-  {
-    slideAngle = (goingUp ? 10 : -10);
-  }
-
 private:
   Controller<4, 6> m_bindings;
 
@@ -283,8 +280,7 @@ private:
   static int8_t direction;
   static bool   boost;
   static bool   inputActivated;
-  static float  slideAngle;
-  static int8_t slideAngleChange;
+  static int8_t slideSpeed;
   static bool   outputChain;
 };
 
@@ -292,8 +288,7 @@ int8_t TankMode::forward          = 0;
 int8_t TankMode::direction        = 0;
 bool   TankMode::boost            = false;
 bool   TankMode::inputActivated   = false;
-float  TankMode::slideAngle       = 0;
-int8_t TankMode::slideAngleChange = 0;
+int8_t TankMode::slideSpeed       = 0;
 bool   TankMode::outputChain      = false;
 
 class MecanumMode : public Mode
@@ -303,16 +298,16 @@ public:
 
   MecanumMode()
   {
-    m_bindings.digitalBind(BUTTON::COLORS_UP,   [](bool)         { Mode::modeManager.changeMode(tankMode); },  true);
-    m_bindings.digitalBind(BUTTON::COLORS_LEFT, [](bool pressed) { outputChain = pressed; },                   false);
-    m_bindings.digitalBind(BUTTON::COLORS_DOWN, [](bool toggled) { inputActivated = toggled; },                true);
-    m_bindings.digitalBind(BUTTON::ARROW_DOWN,  [](bool pressed) { if (pressed) changeSlideAnglePreset(false); },   false);
-    m_bindings.digitalBind(BUTTON::ARROW_UP,    [](bool pressed) { if (pressed) changeSlideAnglePreset(true); },     false);
-    m_bindings.digitalBind(BUTTON::L1,          [](bool pressed) { if (pressed) strafe -= 64; },               false);
-    m_bindings.digitalBind(BUTTON::R1,          [](bool pressed) { if (pressed) strafe += 64; },               false);
+    m_bindings.digitalBind(BUTTON::COLORS_UP,   [](bool)         { Mode::modeManager.changeMode(tankMode); },     true);
+    m_bindings.digitalBind(BUTTON::COLORS_LEFT, [](bool pressed) { outputChain = pressed; },                      false);
+    m_bindings.digitalBind(BUTTON::COLORS_DOWN, [](bool toggled) { inputActivated = toggled; },                   true);
+    m_bindings.digitalBind(BUTTON::ARROW_DOWN,  [](bool pressed) { if (pressed) changeSlideAnglePreset(false); }, false);
+    m_bindings.digitalBind(BUTTON::ARROW_UP,    [](bool pressed) { if (pressed) changeSlideAnglePreset(true); },  false);
+    m_bindings.digitalBind(BUTTON::L1,          [](bool pressed) { if (pressed) yaw += 64; },                     false);
+    m_bindings.digitalBind(BUTTON::R1,          [](bool pressed) { if (pressed) yaw -= 64; },                     false);
     
-    m_bindings.analogBind(ANALOG::JOYSTICK1_X, [](int8_t value) { yaw = value; });
-    m_bindings.analogBind(ANALOG::JOYSTICK1_Y, [](int8_t value) { forward = -value; });
+    m_bindings.analogBind(ANALOG::JOYSTICK1_X, [](int8_t value) { strafe = -value; });
+    m_bindings.analogBind(ANALOG::JOYSTICK1_Y, [](int8_t value) { forward = value; });
     m_bindings.analogBind(ANALOG::JOYSTICK2_Y, [](int8_t value) { if (value <= -32) slideAngleChange = 5; else if (value >= 32) slideAngleChange = -5; });
   }
 
@@ -335,15 +330,18 @@ public:
 
     #ifdef __DEBUG
     Serial.print("[MECANUM] Forward: "); Serial.print(static_cast<int>(forward));
-    Serial.print(" Yaw: ");               Serial.print(static_cast<int>(yaw));
-    Serial.print(" Strafe: ");            Serial.print(static_cast<int>(strafe));
-    Serial.print(" Chain: ");             Serial.print(outputChain);
-    Serial.print(" Slide Direction: ");   Serial.println(static_cast<int>(slideAngle));
+    Serial.print(" Yaw: ");              Serial.print(static_cast<int>(yaw));
+    Serial.print(" Strafe: ");           Serial.print(static_cast<int>(strafe));
+    Serial.print(" Chain: ");            Serial.print(outputChain);
+    Serial.print(" Slide Direction: ");  Serial.println(static_cast<int>(slideAngle));
     #endif
+    
+    CrcLib::MoveHolonomic(forward, yaw, strafe, FRONT_LEFT_MOTOR, BACK_LEFT_MOTOR, FRONT_RIGHT_MOTOR, BACK_RIGHT_MOTOR);
 
-    CrcLib::MoveHolonomic(forward, yaw, strafe,FRONT_LEFT_MOTOR, BACK_LEFT_MOTOR, FRONT_RIGHT_MOTOR, BACK_RIGHT_MOTOR);
+    if (outputChain) CrcLib::SetPwmOutput(CONVEYOR_BELT_MOTOR, -35);
+    else CrcLib::SetPwmOutput(CONVEYOR_BELT_MOTOR, 0);
 
-    strafe           = 0;
+    yaw              = 0;
     slideAngleChange = 0;
   }
 
@@ -395,6 +393,8 @@ Mode*        IdleMode::nextMode    = &tankDriveMode;
 Mode*        TankMode::mecanumMode = &mecanumDriveMode;
 Mode*        MecanumMode::tankMode = &tankDriveMode;
 
+unsigned long timeSinceStart = 0;
+
 void setup()
 {
   CrcLib::Initialize();
@@ -404,21 +404,29 @@ void setup()
   #endif
 
   CrcLib::InitializePwmOutput(BACK_LEFT_MOTOR);
-  CrcLib::InitializePwmOutput(FRONT_LEFT_MOTOR, true);
+  CrcLib::InitializePwmOutput(FRONT_LEFT_MOTOR);
   CrcLib::InitializePwmOutput(BACK_RIGHT_MOTOR, true);
-  CrcLib::InitializePwmOutput(FRONT_RIGHT_MOTOR, true);
+  CrcLib::InitializePwmOutput(FRONT_RIGHT_MOTOR);
+
+  CrcLib::InitializePwmOutput(SLIDE_MOTOR);
+  CrcLib::InitializePwmOutput(CONVEYOR_BELT_MOTOR);
+  CrcLib::InitializePwmOutput(INPUT_MOTOR);
 
   driveModeManager.changeMode(&idleDriveMode);
+
+  timeSinceStart = millis();
 }
 
 void loop()
 {
   CrcLib::Update();
 
+  float dt = static_cast<float>(millis() - timeSinceStart) / 1000.0f;
+  timeSinceStart = millis();
+  
   if (CrcLib::IsCommValid())
   {
-    // TODO: Add a global clock to keep track of time
-    driveModeManager.update(0.033333f);
+    driveModeManager.update(dt);
   }
   else
   {
