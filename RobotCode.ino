@@ -306,7 +306,7 @@ public:
     m_bindings.digitalBind(BUTTON::L1,          [](bool pressed) { if (pressed) yaw += 64; },                     false);
     m_bindings.digitalBind(BUTTON::R1,          [](bool pressed) { if (pressed) yaw -= 64; },                     false);
     
-    m_bindings.analogBind(ANALOG::JOYSTICK1_X, [](int8_t value) { strafe = -value; });
+    m_bindings.analogBind(ANALOG::JOYSTICK1_X, [](int8_t value) { if (value == -128) value = 127; else strafe = -value; });
     m_bindings.analogBind(ANALOG::JOYSTICK1_Y, [](int8_t value) { forward = value; });
     m_bindings.analogBind(ANALOG::JOYSTICK2_Y, [](int8_t value) { if (value <= -32) slideAngleChange = 5; else if (value >= 32) slideAngleChange = -5; });
   }
